@@ -1,0 +1,47 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - revive # see the doc from https://github.com/mgechev/revive
+    - goconst
+    - misspell
+    - unparam
+  settings:
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    revive:
+      enable-all-rules: false
+      rules:
+        - name: unused-parameter
+          severity: warning
+          disabled: true
+        - name: line-length-limit
+          severity: warning
+          arguments: [200]
+  exclusions:
+    paths:
+      - "pkg/definition/definition.go"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      # Simplify code: gofmt with `-s` option.
+      simplify: false
+      # Apply the rewrite rules to the source before reformatting.
+      # https://pkg.go.dev/cmd/gofmt
+      rewrite-rules:
+        - pattern: "interface{}"
+          replacement: "any"
+        - pattern: "a[b:len(a)]"
+          replacement: "a[b:]"
+    goimports:
+      local-prefixes:
+        - "cola.io/koffee/cmd"
+        - "cola.io/koffee/pkg"
