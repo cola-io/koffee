@@ -145,6 +145,7 @@ func (s *Server) ListResources() func(ctx context.Context, req mcp.CallToolReque
 			if err = runtime.DefaultUnstructuredConverter.FromUnstructured(items.UnstructuredContent(), obj); err != nil {
 				return nil, err
 			}
+
 			table, err = s.generator.GenerateTable(obj)
 			if err != nil {
 				return nil, err
@@ -155,6 +156,7 @@ func (s *Server) ListResources() func(ctx context.Context, req mcp.CallToolReque
 				{Name: "Namespace", Type: "string"},
 				{Name: "Age", Type: "string"},
 			}
+
 			rows := make([]metav1.TableRow, 0)
 			for _, item := range items.Items {
 				row := metav1.TableRow{
@@ -332,48 +334,6 @@ func (s *Server) UpdateResource() func(ctx context.Context, req mcp.CallToolRequ
 			return nil, err
 		}
 		return mcp.NewToolResultText(string(resp)), nil
-	}
-}
-
-func (s *Server) DeleteResource() func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		kind, err := req.RequireString("kind")
-		if err != nil {
-			return nil, err
-		}
-
-		resourceName, err := req.RequireString("name")
-		if err != nil {
-			return nil, err
-		}
-		namespace := req.GetString("namespace", "")
-
-		slog.Info("Loading delete resource", "kind", kind, "name", resourceName, "namespace", namespace)
-
-		discoveryClient, err := s.cb.GetDiscoveryClient()
-		if err != nil {
-			return nil, err
-		}
-
-		gvr, err := lookupGroupVersionResource(discoveryClient, kind)
-		if err != nil {
-			return nil, err
-		}
-
-		dynamicClient, err := s.cb.GetDynamicClient()
-		if err != nil {
-			return nil, err
-		}
-
-		if len(namespace) > 0 {
-			err = dynamicClient.Resource(gvr).Namespace(namespace).Delete(ctx, resourceName, metav1.DeleteOptions{})
-		} else {
-			err = dynamicClient.Resource(gvr).Delete(ctx, resourceName, metav1.DeleteOptions{})
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to delete resource: %w", err)
-		}
-		return mcp.NewToolResultText(fmt.Sprintf("Successfully deleted resource %s/%s", kind, resourceName)), nil
 	}
 }
 

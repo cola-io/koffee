@@ -42,7 +42,7 @@ func (s *Server) GetPodLogs() func(ctx context.Context, req mcp.CallToolRequest)
 			return nil, err
 		}
 		defer func() {
-			if err := podLogs.Close(); err != nil {
+			if err = podLogs.Close(); err != nil {
 				slog.Error("Failed to close pod logs", "err", err)
 			}
 		}()

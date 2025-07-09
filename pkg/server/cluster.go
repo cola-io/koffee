@@ -20,7 +20,7 @@ type ClusterContext struct {
 
 func (s *Server) ListClusters() func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		cfg, err := s.cb.LoadRawConfig()
+		cfg, err := s.cb.ToRawKubeConfigLoader().RawConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +51,7 @@ func (s *Server) ListClusters() func(ctx context.Context, req mcp.CallToolReques
 
 func (s *Server) SwitchContexts() func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		cfg, err := s.cb.LoadRawConfig()
+		cfg, err := s.cb.ToRawKubeConfigLoader().RawConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +68,7 @@ func (s *Server) SwitchContexts() func(ctx context.Context, req mcp.CallToolRequ
 		}
 
 		cfg.CurrentContext = inputContext
-		if err = s.cb.WriteToFile(*cfg); err != nil {
+		if err = s.cb.WriteToFile(cfg); err != nil {
 			return nil, err
 		}
 		return mcp.NewToolResultText("switch cluster context successful"), nil

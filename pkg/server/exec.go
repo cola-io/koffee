@@ -88,7 +88,7 @@ func (s *Server) createExecutor(namespace, name string, podExecOptions *corev1.P
 		return nil, err
 	}
 
-	cfg, err := s.cb.LoadRESTConfig()
+	cfg, err := s.cb.ToRawKubeConfigLoader().ClientConfig()
 	if err != nil {
 		return nil, err
 	}

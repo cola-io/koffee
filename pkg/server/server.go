@@ -89,10 +89,10 @@ func (s *Server) RegisterTools(ctx context.Context) {
 			Tool:    mcp.MakeListResourcesTool(),
 			Handler: s.ListResources(),
 		},
-		{
-			Tool:    mcp.MakeApplyResourceTool(),
-			Handler: s.ApplyResource(),
-		},
+		// {
+		// 	Tool:    mcp.MakeApplyResourceTool(),
+		// 	Handler: s.ApplyResource(),
+		// },
 		{
 			Tool:    mcp.MakeDeleteResourceTool(),
 			Handler: s.DeleteResource(),
