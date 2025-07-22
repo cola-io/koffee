@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -43,9 +44,14 @@ func (s *Server) ListClusters(ctx context.Context, session *mcp.ServerSession, r
 		})
 	}
 
+	result, err := json.Marshal(ctxs)
+	if err != nil {
+		return nil, err
+	}
+
 	return &mcp.CallToolResultFor[ClusterContexts]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "list clusters successfully"},
+			&mcp.TextContent{Text: string(result)},
 		},
 		StructuredContent: ctxs,
 	}, nil
