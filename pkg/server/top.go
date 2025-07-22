@@ -5,7 +5,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubectl/pkg/metricsutil"
@@ -13,119 +13,143 @@ import (
 	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 )
 
-func (s *Server) TopPod() func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		namespace := req.GetString("namespace", metav1.NamespaceAll)
-		resourceName := req.GetString("name", "")
-		sortBy := req.GetString("sortBy", "")
-		labelSelector := req.GetString("labelSelector", "")
-		fieldSelector := req.GetString("fieldSelector", "")
-
-		slog.Info("Loading top pod argument", "namespace", namespace, "resourceName", resourceName, "sortBy", sortBy, "labelSelector", labelSelector, "fieldSelector", fieldSelector)
-
-		metricClient, err := s.cb.GetMetricsClient()
-		if err != nil {
-			return nil, err
-		}
-
-		versionedMetrics := &metricsv1beta1.PodMetricsList{}
-		if resourceName != "" {
-			m, err := metricClient.MetricsV1beta1().PodMetricses(namespace).Get(ctx, resourceName, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			versionedMetrics.Items = []metricsv1beta1.PodMetrics{*m}
-		} else {
-			options := metav1.ListOptions{}
-			if len(labelSelector) > 0 {
-				options.LabelSelector = labelSelector
-			}
-			if len(fieldSelector) > 0 {
-				options.FieldSelector = fieldSelector
-			}
-			versionedMetrics, err = metricClient.MetricsV1beta1().PodMetricses(namespace).List(ctx, options)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		metrics := &metricsapi.PodMetricsList{}
-		if err = metricsv1beta1.Convert_v1beta1_PodMetricsList_To_metrics_PodMetricsList(versionedMetrics, metrics, nil); err != nil {
-			return nil, err
-		}
-
-		out := bytes.NewBuffer(make([]byte, 0))
-		if err := metricsutil.NewTopCmdPrinter(out).PrintPodMetrics(metrics.Items, true, true, false, sortBy, true); err != nil {
-			return nil, err
-		}
-		return mcp.NewToolResultText(out.String()), nil
-	}
+// TopPodArgs represents the arguments for the top pod tool.
+type TopPodArgs struct {
+	Namespace     string `json:"namespace" mcp:"The namespace of the pod"`
+	Name          string `json:"name" mcp:"The specified pod name"`
+	SortBy        string `json:"sortBy" mcp:"If non-empty, sort pods list using specified field. The field can be either 'cpu' or 'memory'"`
+	LabelSelector string `json:"labelSelector" mcp:"LabelSelector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2). Matching objects must satisfy all of the specified label constraints"`
+	FieldSelector string `json:"fieldSelector" mcp:"FieldSelector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type"`
 }
 
-func (s *Server) TopNode() func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		resourceName := req.GetString("name", "")
-		sortBy := req.GetString("sortBy", "")
-		labelSelector := req.GetString("labelSelector", "")
+func (s *Server) TopPod(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[TopPodArgs]) (*mcp.CallToolResultFor[*bytes.Buffer], error) {
+	namespace := req.Arguments.Namespace
+	resourceName := req.Arguments.Name
+	sortBy := req.Arguments.SortBy
+	labelSelector := req.Arguments.LabelSelector
+	fieldSelector := req.Arguments.FieldSelector
 
-		slog.Info("Loading top node argument", "resourceName", resourceName, "sortBy", sortBy, "labelSelector", labelSelector)
+	slog.Info("Loading top pod argument", "namespace", namespace, "resourceName", resourceName, "sortBy", sortBy, "labelSelector", labelSelector, "fieldSelector", fieldSelector)
 
-		cli, err := s.cb.GetClient()
-		if err != nil {
-			return nil, err
-		}
-
-		metricClient, err := s.cb.GetMetricsClient()
-		if err != nil {
-			return nil, err
-		}
-
-		versionedMetrics := &metricsv1beta1.NodeMetricsList{}
-		var nodes []corev1.Node
-		if resourceName != "" {
-			m, err := metricClient.MetricsV1beta1().NodeMetricses().Get(ctx, resourceName, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			versionedMetrics.Items = []metricsv1beta1.NodeMetrics{*m}
-
-			node, err := cli.CoreV1().Nodes().Get(ctx, resourceName, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			nodes = append(nodes, *node)
-		} else {
-			options := metav1.ListOptions{}
-			if len(labelSelector) > 0 {
-				options.LabelSelector = labelSelector
-			}
-
-			versionedMetrics, err = metricClient.MetricsV1beta1().NodeMetricses().List(ctx, options)
-			if err != nil {
-				return nil, err
-			}
-
-			nodeList, err := cli.CoreV1().Nodes().List(ctx, options)
-			if err != nil {
-				return nil, err
-			}
-			nodes = append(nodes, nodeList.Items...)
-		}
-
-		metrics := &metricsapi.NodeMetricsList{}
-		if err = metricsv1beta1.Convert_v1beta1_NodeMetricsList_To_metrics_NodeMetricsList(versionedMetrics, metrics, nil); err != nil {
-			return nil, err
-		}
-
-		availableResources := make(map[string]corev1.ResourceList)
-		for _, n := range nodes {
-			availableResources[n.Name] = n.Status.Capacity
-		}
-
-		out := bytes.NewBuffer(make([]byte, 0))
-		if err := metricsutil.NewTopCmdPrinter(out).PrintNodeMetrics(metrics.Items, availableResources, false, sortBy); err != nil {
-			return nil, err
-		}
-		return mcp.NewToolResultText(out.String()), nil
+	metricClient, err := s.cb.GetMetricsClient()
+	if err != nil {
+		return nil, err
 	}
+
+	versionedMetrics := &metricsv1beta1.PodMetricsList{}
+	if resourceName != "" {
+		m, err := metricClient.MetricsV1beta1().PodMetricses(namespace).Get(ctx, resourceName, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		versionedMetrics.Items = []metricsv1beta1.PodMetrics{*m}
+	} else {
+		options := metav1.ListOptions{}
+		if len(labelSelector) > 0 {
+			options.LabelSelector = labelSelector
+		}
+		if len(fieldSelector) > 0 {
+			options.FieldSelector = fieldSelector
+		}
+		versionedMetrics, err = metricClient.MetricsV1beta1().PodMetricses(namespace).List(ctx, options)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	metrics := &metricsapi.PodMetricsList{}
+	if err = metricsv1beta1.Convert_v1beta1_PodMetricsList_To_metrics_PodMetricsList(versionedMetrics, metrics, nil); err != nil {
+		return nil, err
+	}
+
+	out := bytes.NewBuffer(make([]byte, 0))
+	if err := metricsutil.NewTopCmdPrinter(out).PrintPodMetrics(metrics.Items, true, true, false, sortBy, true); err != nil {
+		return nil, err
+	}
+
+	return &mcp.CallToolResultFor[*bytes.Buffer]{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: "get pod metrics successfully"},
+		},
+		StructuredContent: out,
+	}, nil
+}
+
+// TopNodeArgs represents the arguments for the TopNode command.
+type TopNodeArgs struct {
+	Name          string `json:"name" mcp:"The specified node name"`
+	SortBy        string `json:"sortBy" mcp:"If non-empty, sort nodes list using specified field. The field can be either 'cpu' or 'memory'"`
+	LabelSelector string `json:"labelSelector" mcp:"LabelSelector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2). Matching objects must satisfy all of the specified label constraints"`
+}
+
+func (s *Server) TopNode(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[TopNodeArgs]) (*mcp.CallToolResultFor[*bytes.Buffer], error) {
+	resourceName := req.Arguments.Name
+	sortBy := req.Arguments.SortBy
+	labelSelector := req.Arguments.LabelSelector
+
+	slog.Info("Loading top node argument", "resourceName", resourceName, "sortBy", sortBy, "labelSelector", labelSelector)
+
+	cli, err := s.cb.GetClient()
+	if err != nil {
+		return nil, err
+	}
+
+	metricClient, err := s.cb.GetMetricsClient()
+	if err != nil {
+		return nil, err
+	}
+
+	versionedMetrics := &metricsv1beta1.NodeMetricsList{}
+	var nodes []corev1.Node
+	if resourceName != "" {
+		m, err := metricClient.MetricsV1beta1().NodeMetricses().Get(ctx, resourceName, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		versionedMetrics.Items = []metricsv1beta1.NodeMetrics{*m}
+
+		node, err := cli.CoreV1().Nodes().Get(ctx, resourceName, metav1.GetOptions{})
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, *node)
+	} else {
+		options := metav1.ListOptions{}
+		if len(labelSelector) > 0 {
+			options.LabelSelector = labelSelector
+		}
+
+		versionedMetrics, err = metricClient.MetricsV1beta1().NodeMetricses().List(ctx, options)
+		if err != nil {
+			return nil, err
+		}
+
+		nodeList, err := cli.CoreV1().Nodes().List(ctx, options)
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, nodeList.Items...)
+	}
+
+	metrics := &metricsapi.NodeMetricsList{}
+	if err = metricsv1beta1.Convert_v1beta1_NodeMetricsList_To_metrics_NodeMetricsList(versionedMetrics, metrics, nil); err != nil {
+		return nil, err
+	}
+
+	availableResources := make(map[string]corev1.ResourceList)
+	for _, n := range nodes {
+		availableResources[n.Name] = n.Status.Capacity
+	}
+
+	out := bytes.NewBuffer(make([]byte, 0))
+	if err := metricsutil.NewTopCmdPrinter(out).PrintNodeMetrics(metrics.Items, availableResources, false, sortBy); err != nil {
+		return nil, err
+	}
+
+	return &mcp.CallToolResultFor[*bytes.Buffer]{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: "get node metrics successfully"},
+		},
+		StructuredContent: out,
+	}, nil
 }

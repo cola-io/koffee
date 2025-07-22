@@ -3,7 +3,7 @@ module cola.io/koffee
 go 1.24.3
 
 require (
-	github.com/mark3labs/mcp-go v0.33.0
+	github.com/modelcontextprotocol/go-sdk v0.2.0
 	github.com/spf13/cobra v1.9.1
 	k8s.io/api v0.33.2
 	k8s.io/apimachinery v0.33.2
@@ -54,7 +54,6 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.64.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
-	github.com/spf13/cast v1.9.2 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect

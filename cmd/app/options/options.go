@@ -18,7 +18,7 @@ const (
 // Options defines all options for the koffee.
 type Options struct {
 	Transport  string
-	Port       int
+	Addr       string
 	Kubeconfig string
 	Verbose    int
 	Version    bool
@@ -28,8 +28,7 @@ type Options struct {
 func NewOptions() *Options {
 	return &Options{
 		Transport: StdioTransport,
-		Verbose:   0,
-		Port:      8888,
+		Addr:      ":8888",
 	}
 }
 
@@ -37,7 +36,7 @@ func (o *Options) AddFlags() (fss cliflag.NamedFlagSets) {
 	fs := fss.FlagSet("koffee")
 	fs.StringVarP(&o.Kubeconfig, "kubeconfig", "k", "", "Path to Kubernetes configuration file (uses default config if not specified)")
 	fs.StringVarP(&o.Transport, "transport", "t", o.Transport, "Transport protocol to use (stdio, sse)")
-	fs.IntVarP(&o.Port, "port", "p", o.Port, "Port to use for communicating with server, required when using --transport=sse and must be between 1 and 65535")
+	fs.StringVar(&o.Addr, "addr", o.Addr, "Port to use for communicating with server, required when using --transport=sse")
 	fs.IntVarP(&o.Verbose, "v", "v", o.Verbose, "Setting the slog level, default is info level")
 	fs.BoolVarP(&o.Version, "version", "V", o.Version, "Print version information and quits")
 	return
@@ -48,8 +47,8 @@ func (o *Options) Validate() error {
 		return errors.New("--transport must be one of (stdio, sse)")
 	}
 
-	if o.Transport == "sse" && (o.Port < 1 || o.Port > 65535) {
-		return errors.New("--port is required when using --transport=sse and must be between 1 and 65535")
+	if o.Transport == "sse" && o.Addr == "" {
+		return errors.New("--port is required when using --transport=sse")
 	}
 	return nil
 }

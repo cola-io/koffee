@@ -3,26 +3,26 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"cola.io/koffee/pkg/client"
 	"cola.io/koffee/pkg/definition"
-	"cola.io/koffee/pkg/mcp"
+	"cola.io/koffee/pkg/tool"
 	"cola.io/koffee/pkg/version"
 )
 
 type ServerOption func(*Server)
 
 type Server struct {
-	svr       *server.MCPServer
+	svr       *mcp.Server
 	generator *definition.HumanReadableGenerator
 	cb        client.ClientBuilder
 	transport string
-	port      int
+	addr      string
 }
 
 // WithTransport sets the transport type for the server.
@@ -32,10 +32,10 @@ func WithTransport(t string) func(*Server) {
 	}
 }
 
-// WithPort sets the port for the server when the transport is sse.
-func WithPort(p int) func(*Server) {
+// WithAddr sets the address for the server when the transport is sse.
+func WithAddr(addr string) func(*Server) {
 	return func(s *Server) {
-		s.port = p
+		s.addr = addr
 	}
 }
 
@@ -45,16 +45,16 @@ func NewServer(kubeconfig string, opts ...ServerOption) *Server {
 	definition.AddHandlers(generator)
 	s := &Server{
 		transport: "stdio",
-		port:      8888,
-		svr: server.NewMCPServer(
-			"Kubernetes MCP Server",
-			version.Get().Version,
-			server.WithRecovery(),
-			server.WithLogging(),
-		),
+		addr:      ":8888",
+		svr: mcp.NewServer(&mcp.Implementation{
+			Name:    version.Get().Module,
+			Title:   "Kubernetes MCP Server",
+			Version: version.Get().Version,
+		}, nil),
 		generator: generator,
 		cb:        client.NewClientBuilder(kubeconfig),
 	}
+
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -64,56 +64,17 @@ func NewServer(kubeconfig string, opts ...ServerOption) *Server {
 // RegisterTools registers the tools for the server.
 func (s *Server) RegisterTools(ctx context.Context) {
 	slog.Info("Registering tools")
-	s.svr.AddTools([]server.ServerTool{
-		{
-			Tool:    mcp.MakeListClustersTool(),
-			Handler: s.ListClusters(),
-		},
-		{
-			Tool:    mcp.MakeSwitchContextTool(),
-			Handler: s.SwitchContexts(),
-		},
-		{
-			Tool:    mcp.MakeGetClusterVersionTool(),
-			Handler: s.GetClusterVersion(),
-		},
-		{
-			Tool:    mcp.MakeGetApiResourcesTool(),
-			Handler: s.GetApiResources(),
-		},
-		{
-			Tool:    mcp.MakeGetResourceDetailTool(),
-			Handler: s.GetResourceDetailInfo(),
-		},
-		{
-			Tool:    mcp.MakeListResourcesTool(),
-			Handler: s.ListResources(),
-		},
-		// {
-		// 	Tool:    mcp.MakeApplyResourceTool(),
-		// 	Handler: s.ApplyResource(),
-		// },
-		{
-			Tool:    mcp.MakeDeleteResourceTool(),
-			Handler: s.DeleteResource(),
-		},
-		{
-			Tool:    mcp.MakeGetPodLogsTool(),
-			Handler: s.GetPodLogs(),
-		},
-		{
-			Tool:    mcp.MakeRunInContainerTool(),
-			Handler: s.RunInContainer(),
-		},
-		{
-			Tool:    mcp.MakeTopPodTool(),
-			Handler: s.TopPod(),
-		},
-		{
-			Tool:    mcp.MakeTopNodeTool(),
-			Handler: s.TopNode(),
-		},
-	}...)
+	mcp.AddTool(s.svr, tool.MakeListClusters(), s.ListClusters)
+	mcp.AddTool(s.svr, tool.MakeSwitchContext(), s.SwitchContexts)
+	mcp.AddTool(s.svr, tool.MakeGetClusterVersion(), s.GetClusterVersion)
+	mcp.AddTool(s.svr, tool.MakeGetApiResources(), s.GetApiResources)
+	mcp.AddTool(s.svr, tool.MakeGetResourceDetail(), s.GetResourceDetailInfo)
+	mcp.AddTool(s.svr, tool.MakeListResources(), s.ListResources)
+	mcp.AddTool(s.svr, tool.MakeDeleteResource(), s.DeleteResource)
+	mcp.AddTool(s.svr, tool.MakeGetPodLogs(), s.GetPodLogs)
+	mcp.AddTool(s.svr, tool.MakeRunInContainer(), s.RunInContainer)
+	mcp.AddTool(s.svr, tool.MakeTopPod(), s.TopPod)
+	mcp.AddTool(s.svr, tool.MakeTopNode(), s.TopNode)
 }
 
 // Start starts the mcp server.
@@ -121,13 +82,13 @@ func (s *Server) Start(ctx context.Context) error {
 	s.RegisterTools(ctx)
 	switch s.transport {
 	case "sse":
-		slog.Info("Starting mcp server with sse mode and listening on", "port", s.port)
-		sseServer := server.NewSSEServer(s.svr, server.WithBaseURL(fmt.Sprintf("http://0.0.0.0:%d", s.port)))
-		return sseServer.Start(fmt.Sprintf(":%d", s.port))
+		slog.Info("Starting mcp server with sse mode and listening on", "addr", s.addr)
+		return http.ListenAndServe(s.addr, mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
+			return s.svr
+		}, nil))
 	case "stdio":
 		slog.Info("Starting mcp server with STDIO mode")
-		stdioServer := server.NewStdioServer(s.svr)
-		return stdioServer.Listen(ctx, os.Stdin, os.Stdout)
+		return s.svr.Run(ctx, mcp.NewLoggingTransport(mcp.NewStdioTransport(), os.Stderr))
 	}
 	return errors.New("unsupported transport")
 }

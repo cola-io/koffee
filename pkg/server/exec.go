@@ -3,11 +3,10 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/httpstream"
@@ -15,68 +14,64 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-func (s *Server) RunInContainer() func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		resourceName, err := req.RequireString("name")
-		if err != nil {
-			return nil, err
-		}
+// RunInContainerArgs represents the arguments for the RunInContainer tool.
+type RunInContainerArgs struct {
+	Name      string   `json:"name" mcp:"Name of the Pod where the command will be executed"`
+	Namespace string   `json:"namespace" mcp:"Namespace of the Pod where the command will be executed"`
+	Container string   `json:"container" mcp:"The container name which execute command in the pod"`
+	Command   []string `json:"command" mcp:"Command to execute in the Pod container"`
+}
 
-		namespace, err := req.RequireString("namespace")
-		if err != nil {
-			return nil, err
-		}
+func (s *Server) RunInContainer(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[RunInContainerArgs]) (*mcp.CallToolResultFor[map[string]string], error) {
+	resourceName := req.Arguments.Name
+	namespace := req.Arguments.Namespace
+	command := req.Arguments.Command
+	containerName := req.Arguments.Container
 
-		command, err := req.RequireStringSlice("command")
-		if err != nil {
-			return nil, err
-		}
-		containerName := req.GetString("container", "")
+	slog.Info("Executing command in container", "resourceName", resourceName, "namespace", namespace, "container", containerName, "command", command)
 
-		slog.Info("Executing command in container", "resourceName", resourceName, "namespace", namespace, "container", containerName, "command", command)
+	cli, err := s.cb.GetClient()
+	if err != nil {
+		return nil, err
+	}
 
-		cli, err := s.cb.GetClient()
-		if err != nil {
-			return nil, err
-		}
+	// Check if the Pod exists and is not completed
+	pod, err := cli.CoreV1().Pods(namespace).Get(ctx, resourceName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
 
-		// Check if the Pod exists and is not completed
-		pod, err := cli.CoreV1().Pods(namespace).Get(ctx, resourceName, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		return nil, fmt.Errorf("cannot exec into a container in a completed pod, current phase is %s", pod.Status.Phase)
+	}
 
-		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
-			return nil, fmt.Errorf("cannot exec into a container in a completed pod, current phase is %s", pod.Status.Phase)
-		}
+	executor, err := s.createExecutor(namespace, resourceName, &corev1.PodExecOptions{
+		Container: containerName,
+		Command:   command,
+		Stdin:     false,
+		Stdout:    true,
+		Stderr:    true,
+		TTY:       false,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-		executor, err := s.createExecutor(namespace, resourceName, &corev1.PodExecOptions{
-			Container: containerName,
-			Command:   command,
-			Stdin:     false,
-			Stdout:    true,
-			Stderr:    true,
-			TTY:       false,
-		})
-		if err != nil {
-			return nil, err
-		}
+	var stdout = bytes.NewBuffer(make([]byte, 0))
+	var stderr = bytes.NewBuffer(make([]byte, 0))
+	if err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{Stdout: stdout, Stderr: stderr, Tty: false}); err != nil {
+		return nil, err
+	}
 
-		var stdout = bytes.NewBuffer(make([]byte, 0))
-		var stderr = bytes.NewBuffer(make([]byte, 0))
-		if err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{Stdout: stdout, Stderr: stderr, Tty: false}); err != nil {
-			return nil, err
-		}
-
-		resp, err := json.Marshal(map[string]string{
+	return &mcp.CallToolResultFor[map[string]string]{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: "run command in container successfully"},
+		},
+		StructuredContent: map[string]string{
 			"stdout": stdout.String(),
 			"stderr": stderr.String(),
-		})
-		if err != nil {
-			return nil, err
-		}
-		return mcp.NewToolResultText(string(resp)), nil
-	}
+		},
+	}, nil
 }
 
 // createExecutor:

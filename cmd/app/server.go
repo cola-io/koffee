@@ -62,7 +62,7 @@ func runCommand(ctx context.Context, opts *options.Options) error {
 	svr := server.NewServer(
 		opts.Kubeconfig,
 		server.WithTransport(opts.Transport),
-		server.WithPort(opts.Port),
+		server.WithAddr(opts.Addr),
 	)
 	return svr.Start(ctx)
 }

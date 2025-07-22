@@ -6,51 +6,55 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 )
 
-func (s *Server) GetPodLogs() func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		resourceName, err := req.RequireString("name")
-		if err != nil {
-			return nil, err
-		}
+// GetPodLogsArgs represents the arguments for the GetPodLogs tool.
+type GetPodLogsArgs struct {
+	Name      string `json:"name" mcp:"The specified pod name"`
+	Namespace string `json:"namespace" mcp:"The namespace of the pod"`
+	Container string `json:"container" mcp:"Get the logs of this container in the pod"`
+	TailLines int    `json:"tail" mcp:"Lines of recent log file to display"`
+}
 
-		namespace, err := req.RequireString("namespace")
-		if err != nil {
-			return nil, err
-		}
+func (s *Server) GetPodLogs(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[GetPodLogsArgs]) (*mcp.CallToolResultFor[*bytes.Buffer], error) {
+	resourceName := req.Arguments.Name
+	namespace := req.Arguments.Namespace
+	// If containerName is empty, the default container will be used by Kubernetes
+	containerName := req.Arguments.Container
+	tailLines := req.Arguments.TailLines
 
-		// If containerName is empty, the default container will be used by Kubernetes
-		containerName := req.GetString("container", "")
-		tailLines := req.GetInt("tail", 50)
+	slog.Info("Loading arguments", "resourceName", resourceName, "namespace", namespace, "container", containerName, "tailLines", tailLines)
 
-		slog.Info("Loading arguments", "resourceName", resourceName, "namespace", namespace, "container", containerName, "tailLines", tailLines)
-
-		cli, err := s.cb.GetClient()
-		if err != nil {
-			return nil, err
-		}
-
-		podLogs, err := cli.CoreV1().Pods(namespace).GetLogs(resourceName, &corev1.PodLogOptions{
-			TailLines: ptr.To(int64(tailLines)),
-			Container: containerName,
-		}).Stream(ctx)
-		if err != nil {
-			return nil, err
-		}
-		defer func() {
-			if err = podLogs.Close(); err != nil {
-				slog.Error("Failed to close pod logs", "err", err)
-			}
-		}()
-
-		buf := bytes.NewBuffer(make([]byte, 0))
-		if _, err = io.Copy(buf, podLogs); err != nil {
-			return nil, err
-		}
-		return mcp.NewToolResultText(buf.String()), nil
+	cli, err := s.cb.GetClient()
+	if err != nil {
+		return nil, err
 	}
+
+	podLogs, err := cli.CoreV1().Pods(namespace).GetLogs(resourceName, &corev1.PodLogOptions{
+		TailLines: ptr.To(int64(tailLines)),
+		Container: containerName,
+	}).Stream(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err = podLogs.Close(); err != nil {
+			slog.Error("Failed to close pod logs", "err", err)
+		}
+	}()
+
+	buf := bytes.NewBuffer(make([]byte, 0))
+	if _, err = io.Copy(buf, podLogs); err != nil {
+		return nil, err
+	}
+
+	return &mcp.CallToolResultFor[*bytes.Buffer]{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: "get pod logs successfully"},
+		},
+		StructuredContent: buf,
+	}, nil
 }
