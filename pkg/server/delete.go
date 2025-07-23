@@ -46,6 +46,7 @@ func (s *Server) DeleteResource(ctx context.Context, session *mcp.ServerSession,
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete resource: %w", err)
 	}
+
 	return &mcp.CallToolResultFor[any]{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: "delete resource successfully"},

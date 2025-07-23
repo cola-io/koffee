@@ -80,6 +80,7 @@ func (s *Server) SwitchContexts(ctx context.Context, session *mcp.ServerSession,
 	if err = s.cb.WriteToFile(cfg); err != nil {
 		return nil, err
 	}
+
 	return &mcp.CallToolResultFor[any]{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: "switch cluster context successfully"},
@@ -98,9 +99,14 @@ func (s *Server) GetClusterVersion(ctx context.Context, session *mcp.ServerSessi
 		return nil, err
 	}
 
+	out, err := json.Marshal(serverVersion)
+	if err != nil {
+		return nil, err
+	}
+
 	return &mcp.CallToolResultFor[*version.Info]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "get cluster version successfully"},
+			&mcp.TextContent{Text: string(out)},
 		},
 		StructuredContent: serverVersion,
 	}, nil

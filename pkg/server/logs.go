@@ -53,7 +53,7 @@ func (s *Server) GetPodLogs(ctx context.Context, session *mcp.ServerSession, req
 
 	return &mcp.CallToolResultFor[*bytes.Buffer]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "get pod logs successfully"},
+			&mcp.TextContent{Text: buf.String()},
 		},
 		StructuredContent: buf,
 	}, nil

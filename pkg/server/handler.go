@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -22,9 +23,7 @@ type GetApiResourcesArgs struct {
 }
 
 // GetApiResourcesResult represents the result of the GetApiResources tool.
-type GetApiResourcesResult struct {
-	Resources []metav1.APIResource `json:"resources"`
-}
+type GetApiResourcesResult []metav1.APIResource
 
 func (s *Server) GetApiResources(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[GetApiResourcesArgs]) (*mcp.CallToolResultFor[GetApiResourcesResult], error) {
 	includeNamespaceScoped := req.Arguments.IncludeNamespaceScoped
@@ -39,14 +38,20 @@ func (s *Server) GetApiResources(ctx context.Context, session *mcp.ServerSession
 		return nil, err
 	}
 
+	out, err := json.Marshal(resources)
+	if err != nil {
+		return nil, err
+	}
+
 	return &mcp.CallToolResultFor[GetApiResourcesResult]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "get api resources successfully"},
+			&mcp.TextContent{Text: string(out)},
 		},
-		StructuredContent: GetApiResourcesResult{resources},
+		StructuredContent: resources,
 	}, nil
 }
 
+// GetResourceDetailInfoArgs represents the arguments for the GetResourceDetailInfo tool.
 type GetResourceDetailInfoArgs struct {
 	Kind      string `json:"kind" mcp:"Resource type"`
 	Name      string `json:"name" mcp:"The name of the resource to get information about"`
@@ -86,14 +91,20 @@ func (s *Server) GetResourceDetailInfo(ctx context.Context, session *mcp.ServerS
 	}
 	obj.SetManagedFields(nil)
 
+	out, err := obj.MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal resource: %w", err)
+	}
+
 	return &mcp.CallToolResultFor[*unstructured.Unstructured]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "get api resources successfully"},
+			&mcp.TextContent{Text: string(out)},
 		},
 		StructuredContent: obj,
 	}, nil
 }
 
+// ListResourcesArgs represents the arguments for listing resources.
 type ListResourcesArgs struct {
 	Kind          string `json:"kind" mcp:"Resource type"`
 	Namespace     string `json:"namespace" mcp:"The namespace of the resource, If non-empty, only list resources in this namespace"`
@@ -177,9 +188,14 @@ func (s *Server) ListResources(ctx context.Context, session *mcp.ServerSession, 
 		table.Rows = rows
 	}
 
+	out, err := json.Marshal(table)
+	if err != nil {
+		return nil, err
+	}
+
 	return &mcp.CallToolResultFor[*metav1.Table]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "list resources successfully"},
+			&mcp.TextContent{Text: string(out)},
 		},
 		StructuredContent: table,
 	}, nil

@@ -69,7 +69,7 @@ func (s *Server) TopPod(ctx context.Context, session *mcp.ServerSession, req *mc
 
 	return &mcp.CallToolResultFor[*bytes.Buffer]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "get pod metrics successfully"},
+			&mcp.TextContent{Text: out.String()},
 		},
 		StructuredContent: out,
 	}, nil
@@ -148,7 +148,7 @@ func (s *Server) TopNode(ctx context.Context, session *mcp.ServerSession, req *m
 
 	return &mcp.CallToolResultFor[*bytes.Buffer]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "get node metrics successfully"},
+			&mcp.TextContent{Text: out.String()},
 		},
 		StructuredContent: out,
 	}, nil

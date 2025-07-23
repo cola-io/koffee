@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -22,7 +23,9 @@ type RunInContainerArgs struct {
 	Command   []string `json:"command" mcp:"Command to execute in the Pod container"`
 }
 
-func (s *Server) RunInContainer(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[RunInContainerArgs]) (*mcp.CallToolResultFor[map[string]string], error) {
+type RunInContainerResult map[string]string
+
+func (s *Server) RunInContainer(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[RunInContainerArgs]) (*mcp.CallToolResultFor[RunInContainerResult], error) {
 	resourceName := req.Arguments.Name
 	namespace := req.Arguments.Namespace
 	command := req.Arguments.Command
@@ -63,14 +66,20 @@ func (s *Server) RunInContainer(ctx context.Context, session *mcp.ServerSession,
 		return nil, err
 	}
 
-	return &mcp.CallToolResultFor[map[string]string]{
+	result := RunInContainerResult{
+		"stdout": stdout.String(),
+		"stderr": stderr.String(),
+	}
+	out, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+
+	return &mcp.CallToolResultFor[RunInContainerResult]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "run command in container successfully"},
+			&mcp.TextContent{Text: string(out)},
 		},
-		StructuredContent: map[string]string{
-			"stdout": stdout.String(),
-			"stderr": stderr.String(),
-		},
+		StructuredContent: result,
 	}, nil
 }
 

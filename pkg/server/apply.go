@@ -35,7 +35,7 @@ func (s *Server) ApplyResource(ctx context.Context, session *mcp.ServerSession, 
 	}
 	return &mcp.CallToolResultFor[any]{
 		Content: []mcp.Content{
-			&mcp.TextContent{Text: "list clusters successfully"},
+			&mcp.TextContent{Text: "apply manifest successfully"},
 		},
 		StructuredContent: manifest,
 	}, nil
