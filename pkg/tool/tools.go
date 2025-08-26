@@ -1,7 +1,7 @@
 package tool
 
 import (
-	"github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"k8s.io/utils/ptr"
 )
@@ -16,6 +16,45 @@ func MakeListClusters() *mcp.Tool {
 			ReadOnlyHint:   true,
 			IdempotentHint: true,
 		},
+		OutputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"contexts": &jsonschema.Schema{
+					Type:        "array",
+					Description: "",
+					Items: &jsonschema.Schema{
+						Properties: map[string]*jsonschema.Schema{
+							"name": {
+								Type:        "string",
+								Description: "The name of the cluster context",
+							},
+							"current": {
+								Type:        "string",
+								Description: "The current cluster",
+							},
+							"cluster_name": {
+								Type:        "string",
+								Description: "The cluster name",
+							},
+							"user": {
+								Type:        "string",
+								Description: "The current user",
+							},
+							"server": {
+								Type:        "string",
+								Description: "The server address",
+							},
+							"namespace": {
+								Type:        "string",
+								Description: "The namespace",
+							},
+						},
+						Required: []string{"name", "current", "cluster_name", "server"},
+					},
+				},
+			},
+			Required: []string{"contexts"},
+		},
 	}
 }
 
@@ -29,6 +68,7 @@ func MakeSwitchContext() *mcp.Tool {
 			ReadOnlyHint: false,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"name": {
 					Type:        "string",
@@ -64,12 +104,16 @@ func MakeGetApiResources() *mcp.Tool {
 			IdempotentHint: true,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"includeNamespaceScoped": {
 					Type:        "boolean",
 					Description: "Whether to include namespace-scoped resources",
 				},
 			},
+		},
+		OutputSchema: &jsonschema.Schema{
+			Type: "object",
 		},
 	}
 }
@@ -85,6 +129,7 @@ func MakeGetResourceDetail() *mcp.Tool {
 			IdempotentHint: true,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"kind": {
 					Type:        "string",
@@ -115,6 +160,7 @@ func MakeListResources() *mcp.Tool {
 			IdempotentHint: true,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"kind": {
 					Type:        "string",
@@ -150,6 +196,7 @@ func MakeApplyResourceTool() *mcp.Tool {
 			ReadOnlyHint: false,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"manifest": {
 					Type:        "string",
@@ -171,6 +218,7 @@ func MakeDeleteResource() *mcp.Tool {
 			ReadOnlyHint: false,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"kind": {
 					Type:        "string",
@@ -199,6 +247,7 @@ func MakeGetPodLogs() *mcp.Tool {
 			ReadOnlyHint: true,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"name": {
 					Type:        "string",
@@ -234,6 +283,7 @@ func MakeRunInContainer() *mcp.Tool {
 			ReadOnlyHint: false,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"name": {
 					Type:        "string",
@@ -268,6 +318,7 @@ func MakeTopPod() *mcp.Tool {
 			ReadOnlyHint: true,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"name": {
 					Type:        "string",
@@ -306,6 +357,7 @@ func MakeTopNode() *mcp.Tool {
 			ReadOnlyHint: true,
 		},
 		InputSchema: &jsonschema.Schema{
+			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
 				"name": {
 					Type:        "string",

@@ -10,16 +10,16 @@ import (
 
 // ApplyResourceArgs represents the arguments for applying a resource.
 type ApplyResourceArgs struct {
-	Manifest string `json:"manifest" mcp:"Resource manifest, JSON and YAML formats are accepted"`
+	Manifest string `json:"manifest" jsonschema:"Resource manifest, JSON and YAML formats are accepted"`
 }
 
 // ApplyResource returns a function that applies a resource.
-func (s *Server) ApplyResource(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[ApplyResourceArgs]) (*mcp.CallToolResultFor[any], error) {
-	manifest := req.Arguments.Manifest
+func (s *Server) ApplyResource(ctx context.Context, req *mcp.CallToolRequest, args *ApplyResourceArgs) (*mcp.CallToolResult, any, error) {
+	manifest := args.Manifest
 
 	namespace, enforceNamespace, err := s.cb.ToRawKubeConfigLoader().Namespace()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	builder := resource.NewBuilder(genericclioptions.NewConfigFlags(false))
@@ -31,12 +31,12 @@ func (s *Server) ApplyResource(ctx context.Context, session *mcp.ServerSession, 
 		Do()
 
 	if _, err := r.Infos(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return &mcp.CallToolResultFor[any]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: "apply manifest successfully"},
 		},
 		StructuredContent: manifest,
-	}, nil
+	}, manifest, nil
 }

@@ -17,35 +17,35 @@ import (
 
 // RunInContainerArgs represents the arguments for the RunInContainer tool.
 type RunInContainerArgs struct {
-	Name      string   `json:"name" mcp:"Name of the Pod where the command will be executed"`
-	Namespace string   `json:"namespace" mcp:"Namespace of the Pod where the command will be executed"`
-	Container string   `json:"container" mcp:"The container name which execute command in the pod"`
-	Command   []string `json:"command" mcp:"Command to execute in the Pod container"`
+	Name      string   `json:"name" jsonschema:"Name of the Pod where the command will be executed"`
+	Namespace string   `json:"namespace" jsonschema:"Namespace of the Pod where the command will be executed"`
+	Container string   `json:"container" jsonschema:"The container name which execute command in the pod"`
+	Command   []string `json:"command" jsonschema:"Command to execute in the Pod container"`
 }
 
 type RunInContainerResult map[string]string
 
-func (s *Server) RunInContainer(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[RunInContainerArgs]) (*mcp.CallToolResultFor[RunInContainerResult], error) {
-	resourceName := req.Arguments.Name
-	namespace := req.Arguments.Namespace
-	command := req.Arguments.Command
-	containerName := req.Arguments.Container
+func (s *Server) RunInContainer(ctx context.Context, req *mcp.CallToolRequest, args *RunInContainerArgs) (*mcp.CallToolResult, RunInContainerResult, error) {
+	resourceName := args.Name
+	namespace := args.Namespace
+	command := args.Command
+	containerName := args.Container
 
 	slog.Info("Executing command in container", "resourceName", resourceName, "namespace", namespace, "container", containerName, "command", command)
 
 	cli, err := s.cb.GetClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Check if the Pod exists and is not completed
 	pod, err := cli.CoreV1().Pods(namespace).Get(ctx, resourceName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
-		return nil, fmt.Errorf("cannot exec into a container in a completed pod, current phase is %s", pod.Status.Phase)
+		return nil, nil, fmt.Errorf("cannot exec into a container in a completed pod, current phase is %s", pod.Status.Phase)
 	}
 
 	executor, err := s.createExecutor(namespace, resourceName, &corev1.PodExecOptions{
@@ -57,13 +57,13 @@ func (s *Server) RunInContainer(ctx context.Context, session *mcp.ServerSession,
 		TTY:       false,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var stdout = bytes.NewBuffer(make([]byte, 0))
 	var stderr = bytes.NewBuffer(make([]byte, 0))
 	if err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{Stdout: stdout, Stderr: stderr, Tty: false}); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	result := RunInContainerResult{
@@ -72,15 +72,15 @@ func (s *Server) RunInContainer(ctx context.Context, session *mcp.ServerSession,
 	}
 	out, err := json.Marshal(result)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &mcp.CallToolResultFor[RunInContainerResult]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(out)},
 		},
 		StructuredContent: result,
-	}, nil
+	}, result, nil
 }
 
 // createExecutor:

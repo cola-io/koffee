@@ -13,24 +13,24 @@ import (
 
 // GetPodLogsArgs represents the arguments for the GetPodLogs tool.
 type GetPodLogsArgs struct {
-	Name      string `json:"name" mcp:"The specified pod name"`
-	Namespace string `json:"namespace" mcp:"The namespace of the pod"`
-	Container string `json:"container" mcp:"Get the logs of this container in the pod"`
-	TailLines int    `json:"tail" mcp:"Lines of recent log file to display"`
+	Name      string `json:"name" jsonschema:"The specified pod name"`
+	Namespace string `json:"namespace" jsonschema:"The namespace of the pod"`
+	Container string `json:"container" jsonschema:"Get the logs of this container in the pod"`
+	TailLines int    `json:"tail" jsonschema:"Lines of recent log file to display"`
 }
 
-func (s *Server) GetPodLogs(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[GetPodLogsArgs]) (*mcp.CallToolResultFor[*bytes.Buffer], error) {
-	resourceName := req.Arguments.Name
-	namespace := req.Arguments.Namespace
+func (s *Server) GetPodLogs(ctx context.Context, req *mcp.CallToolRequest, args *GetPodLogsArgs) (*mcp.CallToolResult, *bytes.Buffer, error) {
+	resourceName := args.Name
+	namespace := args.Namespace
 	// If containerName is empty, the default container will be used by Kubernetes
-	containerName := req.Arguments.Container
-	tailLines := req.Arguments.TailLines
+	containerName := args.Container
+	tailLines := args.TailLines
 
 	slog.Info("Loading arguments", "resourceName", resourceName, "namespace", namespace, "container", containerName, "tailLines", tailLines)
 
 	cli, err := s.cb.GetClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	podLogs, err := cli.CoreV1().Pods(namespace).GetLogs(resourceName, &corev1.PodLogOptions{
@@ -38,7 +38,7 @@ func (s *Server) GetPodLogs(ctx context.Context, session *mcp.ServerSession, req
 		Container: containerName,
 	}).Stream(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer func() {
 		if err = podLogs.Close(); err != nil {
@@ -48,13 +48,13 @@ func (s *Server) GetPodLogs(ctx context.Context, session *mcp.ServerSession, req
 
 	buf := bytes.NewBuffer(make([]byte, 0))
 	if _, err = io.Copy(buf, podLogs); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &mcp.CallToolResultFor[*bytes.Buffer]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: buf.String()},
 		},
 		StructuredContent: buf,
-	}, nil
+	}, buf, nil
 }

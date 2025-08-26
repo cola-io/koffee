@@ -19,65 +19,65 @@ import (
 
 // GetApiResourcesArgs represents the arguments for the GetApiResources tool.
 type GetApiResourcesArgs struct {
-	IncludeNamespaceScoped bool `json:"includeNamespaceScoped" mcp:"Include namespace-scoped resources"`
+	IncludeNamespaceScoped bool `json:"includeNamespaceScoped" jsonschema:"Include namespace-scoped resources"`
 }
 
 // GetApiResourcesResult represents the result of the GetApiResources tool.
 type GetApiResourcesResult []metav1.APIResource
 
-func (s *Server) GetApiResources(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[GetApiResourcesArgs]) (*mcp.CallToolResultFor[GetApiResourcesResult], error) {
-	includeNamespaceScoped := req.Arguments.IncludeNamespaceScoped
+func (s *Server) GetApiResources(ctx context.Context, req *mcp.CallToolRequest, args *GetApiResourcesArgs) (*mcp.CallToolResult, GetApiResourcesResult, error) {
+	includeNamespaceScoped := args.IncludeNamespaceScoped
 
 	discoveryClient, err := s.cb.GetDiscoveryClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	resources, err := ListApiResources(discoveryClient, includeNamespaceScoped)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	out, err := json.Marshal(resources)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &mcp.CallToolResultFor[GetApiResourcesResult]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(out)},
 		},
 		StructuredContent: resources,
-	}, nil
+	}, resources, nil
 }
 
 // GetResourceDetailInfoArgs represents the arguments for the GetResourceDetailInfo tool.
 type GetResourceDetailInfoArgs struct {
-	Kind      string `json:"kind" mcp:"Resource type"`
-	Name      string `json:"name" mcp:"The name of the resource to get information about"`
-	Namespace string `json:"namespace" mcp:"Namespace (required for namespace-scoped resources)"`
+	Kind      string `json:"kind" jsonschema:"Resource type"`
+	Name      string `json:"name" jsonschema:"The name of the resource to get information about"`
+	Namespace string `json:"namespace" jsonschema:"Namespace (required for namespace-scoped resources)"`
 }
 
-func (s *Server) GetResourceDetailInfo(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[GetResourceDetailInfoArgs]) (*mcp.CallToolResultFor[*unstructured.Unstructured], error) {
-	kind := req.Arguments.Kind
-	resourceName := req.Arguments.Name
-	namespace := req.Arguments.Namespace
+func (s *Server) GetResourceDetailInfo(ctx context.Context, req *mcp.CallToolRequest, args *GetResourceDetailInfoArgs) (*mcp.CallToolResult, *unstructured.Unstructured, error) {
+	kind := args.Kind
+	resourceName := args.Name
+	namespace := args.Namespace
 
 	slog.Info("Getting resource detail info", "kind", kind, "name", resourceName, "namespace", namespace)
 
 	discoveryClient, err := s.cb.GetDiscoveryClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	dynamicClient, err := s.cb.GetDynamicClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	gvResource, err := lookupGroupVersionResource(discoveryClient, kind)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var obj *unstructured.Unstructured
@@ -87,56 +87,56 @@ func (s *Server) GetResourceDetailInfo(ctx context.Context, session *mcp.ServerS
 		obj, err = dynamicClient.Resource(gvResource).Get(ctx, resourceName, metav1.GetOptions{})
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to get resource info: %w", err)
+		return nil, nil, fmt.Errorf("failed to get resource info: %w", err)
 	}
 	obj.SetManagedFields(nil)
 
 	out, err := obj.MarshalJSON()
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal resource: %w", err)
+		return nil, nil, fmt.Errorf("failed to marshal resource: %w", err)
 	}
 
-	return &mcp.CallToolResultFor[*unstructured.Unstructured]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(out)},
 		},
 		StructuredContent: obj,
-	}, nil
+	}, obj, nil
 }
 
 // ListResourcesArgs represents the arguments for listing resources.
 type ListResourcesArgs struct {
-	Kind          string `json:"kind" mcp:"Resource type"`
-	Namespace     string `json:"namespace" mcp:"The namespace of the resource, If non-empty, only list resources in this namespace"`
-	LabelSelector string `json:"labelSelector" mcp:"LabelSelector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2). Matching objects must satisfy all of the specified label constraints"`
-	FieldSelector string `json:"fieldSelector" mcp:"FieldSelector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type"`
+	Kind          string `json:"kind" jsonschema:"Resource type"`
+	Namespace     string `json:"namespace" jsonschema:"The namespace of the resource, If non-empty, only list resources in this namespace"`
+	LabelSelector string `json:"labelSelector" jsonschema:"LabelSelector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2). Matching objects must satisfy all of the specified label constraints"`
+	FieldSelector string `json:"fieldSelector" jsonschema:"FieldSelector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type"`
 }
 
-func (s *Server) ListResources(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[ListResourcesArgs]) (*mcp.CallToolResultFor[*metav1.Table], error) {
-	kind := req.Arguments.Kind
-	namespace := req.Arguments.Namespace
-	labelSelector := req.Arguments.LabelSelector
-	fieldSelector := req.Arguments.FieldSelector
+func (s *Server) ListResources(ctx context.Context, req *mcp.CallToolRequest, args *ListResourcesArgs) (*mcp.CallToolResult, *metav1.Table, error) {
+	kind := args.Kind
+	namespace := args.Namespace
+	labelSelector := args.LabelSelector
+	fieldSelector := args.FieldSelector
 
 	slog.Info("Listing resources", "kind", kind, "namespace", namespace, "labelSelector", labelSelector, "fieldSelector", fieldSelector)
 
 	discoveryClient, err := s.cb.GetDiscoveryClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if _, err = lookupGroupVersionResource(discoveryClient, kind); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	gvResource, err := lookupGroupVersionResource(discoveryClient, kind)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	dynamicClient, err := s.cb.GetDynamicClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var options metav1.ListOptions
@@ -154,7 +154,7 @@ func (s *Server) ListResources(ctx context.Context, session *mcp.ServerSession, 
 		items, err = dynamicClient.Resource(gvResource).List(ctx, options)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to list resources: %w", err)
+		return nil, nil, fmt.Errorf("failed to list resources: %w", err)
 	}
 
 	slog.Info("Listing resources", "kind", kind, "namespace", namespace, "items", len(items.Items))
@@ -163,12 +163,12 @@ func (s *Server) ListResources(ctx context.Context, session *mcp.ServerSession, 
 	table := &metav1.Table{}
 	if supported {
 		if err = runtime.DefaultUnstructuredConverter.FromUnstructured(items.UnstructuredContent(), obj); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		table, err = s.generator.GenerateTable(obj)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	} else {
 		table.ColumnDefinitions = []metav1.TableColumnDefinition{
@@ -190,15 +190,15 @@ func (s *Server) ListResources(ctx context.Context, session *mcp.ServerSession, 
 
 	out, err := json.Marshal(table)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &mcp.CallToolResultFor[*metav1.Table]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(out)},
 		},
 		StructuredContent: table,
-	}, nil
+	}, table, nil
 }
 
 func ListApiResources(discoveryClient discovery.DiscoveryInterface, includeNamespaceScoped bool) ([]metav1.APIResource, error) {

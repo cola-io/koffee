@@ -1,9 +1,10 @@
 module cola.io/koffee
 
-go 1.24.3
+go 1.24.6
 
 require (
-	github.com/modelcontextprotocol/go-sdk v0.2.0
+	github.com/google/jsonschema-go v0.2.0
+	github.com/modelcontextprotocol/go-sdk v0.3.0
 	github.com/spf13/cobra v1.9.1
 	k8s.io/api v0.33.2
 	k8s.io/apimachinery v0.33.2

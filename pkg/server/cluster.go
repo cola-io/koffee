@@ -19,12 +19,14 @@ type ClusterContext struct {
 	Namespace   string `json:"namespace,omitempty"`
 }
 
-type ClusterContexts []ClusterContext
+type ClusterContexts struct {
+	Contexts []ClusterContext `json:"contexts,omitempty"`
+}
 
-func (s *Server) ListClusters(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[any]) (*mcp.CallToolResultFor[ClusterContexts], error) {
+func (s *Server) ListClusters(ctx context.Context, req *mcp.CallToolRequest, param any) (*mcp.CallToolResult, *ClusterContexts, error) {
 	cfg, err := s.cb.ToRawKubeConfigLoader().RawConfig()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	ctxs := make([]ClusterContext, 0)
@@ -46,68 +48,68 @@ func (s *Server) ListClusters(ctx context.Context, session *mcp.ServerSession, r
 
 	result, err := json.Marshal(ctxs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &mcp.CallToolResultFor[ClusterContexts]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(result)},
 		},
 		StructuredContent: ctxs,
-	}, nil
+	}, &ClusterContexts{Contexts: ctxs}, nil
 }
 
 // SwitchContextArgs represents the arguments for switching cluster contexts.
 type SwitchContextArgs struct {
-	Name string `json:"name" mcp:"The name of the cluster context to switch to"`
+	Name string `json:"name" jsonschema:"The name of the cluster context to switch to"`
 }
 
-func (s *Server) SwitchContexts(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[SwitchContextArgs]) (*mcp.CallToolResultFor[any], error) {
+func (s *Server) SwitchContexts(ctx context.Context, req *mcp.CallToolRequest, args *SwitchContextArgs) (*mcp.CallToolResult, any, error) {
 	cfg, err := s.cb.ToRawKubeConfigLoader().RawConfig()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	inputContext := req.Arguments.Name
+	inputContext := args.Name
 
 	slog.Info("Loading contexts", "inputContext", inputContext)
 
 	if _, ok := cfg.Contexts[inputContext]; !ok {
-		return nil, fmt.Errorf("context %q not found in the specified kuebconfig", inputContext)
+		return nil, nil, fmt.Errorf("context %q not found in the specified kuebconfig", inputContext)
 	}
 
 	cfg.CurrentContext = inputContext
 	if err = s.cb.WriteToFile(cfg); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &mcp.CallToolResultFor[any]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: "switch cluster context successfully"},
 		},
-	}, nil
+	}, nil, nil
 }
 
-func (s *Server) GetClusterVersion(ctx context.Context, session *mcp.ServerSession, req *mcp.CallToolParamsFor[any]) (*mcp.CallToolResultFor[*version.Info], error) {
+func (s *Server) GetClusterVersion(ctx context.Context, req *mcp.CallToolRequest, args any) (*mcp.CallToolResult, *version.Info, error) {
 	discoveryClient, err := s.cb.GetDiscoveryClient()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	serverVersion, err := discoveryClient.ServerVersion()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	out, err := json.Marshal(serverVersion)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &mcp.CallToolResultFor[*version.Info]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(out)},
 		},
 		StructuredContent: serverVersion,
-	}, nil
+	}, serverVersion, nil
 }
