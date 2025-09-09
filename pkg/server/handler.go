@@ -19,7 +19,7 @@ import (
 
 // GetApiResourcesArgs represents the arguments for the GetApiResources tool.
 type GetApiResourcesArgs struct {
-	IncludeNamespaceScoped bool `json:"includeNamespaceScoped" jsonschema:"Include namespace-scoped resources"`
+	IncludeNamespaceScoped bool `json:"includeNamespaceScoped"`
 }
 
 // GetApiResourcesResult represents the result of the GetApiResources tool.
@@ -53,9 +53,9 @@ func (s *Server) GetApiResources(ctx context.Context, req *mcp.CallToolRequest, 
 
 // GetResourceDetailInfoArgs represents the arguments for the GetResourceDetailInfo tool.
 type GetResourceDetailInfoArgs struct {
-	Kind      string `json:"kind" jsonschema:"Resource type"`
-	Name      string `json:"name" jsonschema:"The name of the resource to get information about"`
-	Namespace string `json:"namespace" jsonschema:"Namespace (required for namespace-scoped resources)"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
 func (s *Server) GetResourceDetailInfo(ctx context.Context, req *mcp.CallToolRequest, args *GetResourceDetailInfoArgs) (*mcp.CallToolResult, *unstructured.Unstructured, error) {
@@ -106,10 +106,10 @@ func (s *Server) GetResourceDetailInfo(ctx context.Context, req *mcp.CallToolReq
 
 // ListResourcesArgs represents the arguments for listing resources.
 type ListResourcesArgs struct {
-	Kind          string `json:"kind" jsonschema:"Resource type"`
-	Namespace     string `json:"namespace" jsonschema:"The namespace of the resource, If non-empty, only list resources in this namespace"`
-	LabelSelector string `json:"labelSelector" jsonschema:"LabelSelector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2). Matching objects must satisfy all of the specified label constraints"`
-	FieldSelector string `json:"fieldSelector" jsonschema:"FieldSelector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type"`
+	Kind          string `json:"kind"`
+	Namespace     string `json:"namespace"`
+	LabelSelector string `json:"labelSelector"`
+	FieldSelector string `json:"fieldSelector"`
 }
 
 func (s *Server) ListResources(ctx context.Context, req *mcp.CallToolRequest, args *ListResourcesArgs) (*mcp.CallToolResult, *metav1.Table, error) {

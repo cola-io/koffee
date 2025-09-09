@@ -11,9 +11,9 @@ import (
 
 // DeleteResourceArgs represents the arguments for deleting a resource.
 type DeleteResourceArgs struct {
-	Kind      string `json:"kind" jsonschema:"The type of the specified resource"`
-	Name      string `json:"name" jsonschema:"The name of the specified resource"`
-	Namespace string `json:"namespace" jsonschema:"The namespace of the resource, (required for namespace-scoped resources)"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
 func (s *Server) DeleteResource(ctx context.Context, req *mcp.CallToolRequest, args *DeleteResourceArgs) (*mcp.CallToolResult, any, error) {

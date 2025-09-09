@@ -13,10 +13,10 @@ import (
 
 // GetPodLogsArgs represents the arguments for the GetPodLogs tool.
 type GetPodLogsArgs struct {
-	Name      string `json:"name" jsonschema:"The specified pod name"`
-	Namespace string `json:"namespace" jsonschema:"The namespace of the pod"`
-	Container string `json:"container" jsonschema:"Get the logs of this container in the pod"`
-	TailLines int    `json:"tail" jsonschema:"Lines of recent log file to display"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Container string `json:"container"`
+	TailLines int    `json:"tail"`
 }
 
 func (s *Server) GetPodLogs(ctx context.Context, req *mcp.CallToolRequest, args *GetPodLogsArgs) (*mcp.CallToolResult, *bytes.Buffer, error) {

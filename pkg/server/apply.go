@@ -10,7 +10,7 @@ import (
 
 // ApplyResourceArgs represents the arguments for applying a resource.
 type ApplyResourceArgs struct {
-	Manifest string `json:"manifest" jsonschema:"Resource manifest, JSON and YAML formats are accepted"`
+	Manifest string `json:"manifest"`
 }
 
 // ApplyResource returns a function that applies a resource.

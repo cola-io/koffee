@@ -15,7 +15,7 @@ import (
 	"cola.io/koffee/pkg/version"
 )
 
-type ServerOption func(*Server)
+type Option func(*Server)
 
 type Server struct {
 	svr       *mcp.Server
@@ -40,7 +40,7 @@ func WithAddr(addr string) func(*Server) {
 }
 
 // NewServer creates a new mcp server.
-func NewServer(kubeconfig string, opts ...ServerOption) *Server {
+func NewServer(kubeconfig string, opts ...Option) *Server {
 	generator := definition.NewTableGenerator()
 	definition.AddHandlers(generator)
 	s := &Server{
@@ -62,7 +62,7 @@ func NewServer(kubeconfig string, opts ...ServerOption) *Server {
 }
 
 // RegisterTools registers the tools for the server.
-func (s *Server) RegisterTools(ctx context.Context) {
+func (s *Server) RegisterTools() {
 	slog.Info("Registering tools")
 	mcp.AddTool(s.svr, tool.MakeListClusters(), s.ListClusters)
 	mcp.AddTool(s.svr, tool.MakeSwitchContext(), s.SwitchContexts)
@@ -79,7 +79,7 @@ func (s *Server) RegisterTools(ctx context.Context) {
 
 // Start starts the mcp server.
 func (s *Server) Start(ctx context.Context) error {
-	s.RegisterTools(ctx)
+	s.RegisterTools()
 	switch s.transport {
 	case "sse":
 		slog.Info("Starting mcp server with sse mode and listening on", "addr", s.addr)
@@ -88,7 +88,7 @@ func (s *Server) Start(ctx context.Context) error {
 		}, nil))
 	case "stdio":
 		slog.Info("Starting mcp server with STDIO mode")
-		return s.svr.Run(ctx, mcp.NewLoggingTransport(mcp.NewStdioTransport(), os.Stderr))
+		return s.svr.Run(ctx, &mcp.LoggingTransport{Transport: &mcp.StdioTransport{}, Writer: os.Stderr})
 	}
 	return errors.New("unsupported transport")
 }

@@ -10,12 +10,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 )
 
-// GenerateOptions encapsulates attributes for table generation.
-type GenerateOptions struct {
-	NoHeaders bool
-	Wide      bool
-}
-
 // TableGenerator - an interface for generating metav1.Table provided a runtime.Object
 type TableGenerator interface {
 	GenerateTable(obj runtime.Object) (*metav1.Table, error)
@@ -126,7 +120,7 @@ func (h *HumanReadableGenerator) TableHandler(columnDefinitions []metav1.TableCo
 // printFunc is the function that will be called to print an object.
 // It must be of the following type:
 //
-//	func printFunc(object ObjectType, options GenerateOptions) ([]metav1.TableRow, error)
+//	func printFunc(object ObjectType) ([]metav1.TableRow, error)
 //
 // where ObjectType is the type of the object that will be printed, and the first
 // return value is an array of rows, with each row containing a number of cells that
@@ -135,15 +129,15 @@ func ValidateRowPrintHandlerFunc(printFunc reflect.Value) error {
 	if printFunc.Kind() != reflect.Func {
 		return fmt.Errorf("invalid print handler. %#v is not a function", printFunc)
 	}
+
 	funcType := printFunc.Type()
 	if funcType.NumIn() != 1 || funcType.NumOut() != 2 {
-		return fmt.Errorf("invalid print handler." +
-			"Must accept 1 parameters and return 2 value")
+		return fmt.Errorf("invalid print handler. Must accept 1 parameters and return 2 value")
 	}
+
 	if funcType.Out(0) != reflect.TypeOf((*[]metav1.TableRow)(nil)).Elem() ||
 		funcType.Out(1) != reflect.TypeOf((*error)(nil)).Elem() {
-		return fmt.Errorf("invalid print handler. The expected signature is: "+
-			"func handler(obj %v) ([]metav1.TableRow, error)", funcType.In(0))
+		return fmt.Errorf("invalid print handler. The expected signature is: func handler(obj %v) ([]metav1.TableRow, error)", funcType.In(0))
 	}
 	return nil
 }

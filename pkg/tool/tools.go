@@ -19,7 +19,7 @@ func MakeListClusters() *mcp.Tool {
 		OutputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
-				"contexts": &jsonschema.Schema{
+				"contexts": {
 					Type:        "array",
 					Description: "",
 					Items: &jsonschema.Schema{
@@ -65,7 +65,8 @@ func MakeSwitchContext() *mcp.Tool {
 		Title:       "Switch Context",
 		Description: "Switch the kubernetes context",
 		Annotations: &mcp.ToolAnnotations{
-			ReadOnlyHint: false,
+			ReadOnlyHint:   false,
+			IdempotentHint: true,
 		},
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
@@ -191,7 +192,7 @@ func MakeApplyResourceTool() *mcp.Tool {
 	return &mcp.Tool{
 		Name:        "apply_resource",
 		Title:       "Apply Resource",
-		Description: `Apply a configuration to a resource by file name. The resource name must be specified. This resource will be created if it doesn't exist yet`,
+		Description: "Apply a configuration to a resource by file name. The resource name must be specified. This resource will be created if it doesn't exist yet",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint: false,
 		},
@@ -242,7 +243,7 @@ func MakeDeleteResource() *mcp.Tool {
 func MakeGetPodLogs() *mcp.Tool {
 	return &mcp.Tool{
 		Name:        "get_pod_logs",
-		Description: `Get the logs for a container in a pod or specified resource. If the pod has only one container, the container name is optional`,
+		Description: "Get the logs for a container in a pod or specified resource. If the pod has only one container, the container name is optional",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint: true,
 		},
@@ -264,8 +265,8 @@ func MakeGetPodLogs() *mcp.Tool {
 				"tail": {
 					Type:        "integer",
 					Description: "Lines of recent log file to display",
-					Minimum:     ptr.To[float64](1.0),
-					Maximum:     ptr.To[float64](100.0),
+					Minimum:     ptr.To(1.0),
+					Maximum:     ptr.To(100.0),
 				},
 			},
 			Required: []string{"kind", "name", "namespace"},
@@ -278,7 +279,7 @@ func MakeRunInContainer() *mcp.Tool {
 	return &mcp.Tool{
 		Name:        "run_in_container",
 		Title:       "Run In Container",
-		Description: `Execute a command in a container. If the container is empty, it uses the default container or the first container in the pod.`,
+		Description: "Execute a command in a container. If the container is empty, it uses the default container or the first container in the pod.",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint: false,
 		},
@@ -313,7 +314,7 @@ func MakeTopPod() *mcp.Tool {
 	return &mcp.Tool{
 		Name:        "top_pod",
 		Title:       "Top Pod",
-		Description: `Display resource (CPU/memory) usage of pods. It allows you to see the resource consumption of pods`,
+		Description: "Display resource (CPU/memory) usage of pods. It allows you to see the resource consumption of pods",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint: true,
 		},
@@ -352,7 +353,7 @@ func MakeTopNode() *mcp.Tool {
 	return &mcp.Tool{
 		Name:        "top_node",
 		Title:       "Top Node",
-		Description: `Display resource (CPU/memory) usage of nodes. It allows you to see the resource consumption of nodes`,
+		Description: "Display resource (CPU/memory) usage of nodes. It allows you to see the resource consumption of nodes",
 		Annotations: &mcp.ToolAnnotations{
 			ReadOnlyHint: true,
 		},

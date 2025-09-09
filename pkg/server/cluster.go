@@ -61,7 +61,7 @@ func (s *Server) ListClusters(ctx context.Context, req *mcp.CallToolRequest, par
 
 // SwitchContextArgs represents the arguments for switching cluster contexts.
 type SwitchContextArgs struct {
-	Name string `json:"name" jsonschema:"The name of the cluster context to switch to"`
+	Name string `json:"name"`
 }
 
 func (s *Server) SwitchContexts(ctx context.Context, req *mcp.CallToolRequest, args *SwitchContextArgs) (*mcp.CallToolResult, any, error) {

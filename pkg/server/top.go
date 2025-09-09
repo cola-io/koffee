@@ -15,11 +15,11 @@ import (
 
 // TopPodArgs represents the arguments for the top pod tool.
 type TopPodArgs struct {
-	Namespace     string `json:"namespace" jsonschema:"The namespace of the pod"`
-	Name          string `json:"name" jsonschema:"The specified pod name"`
-	SortBy        string `json:"sortBy" jsonschema:"If non-empty, sort pods list using specified field. The field can be either 'cpu' or 'memory'"`
-	LabelSelector string `json:"labelSelector" jsonschema:"LabelSelector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2). Matching objects must satisfy all of the specified label constraints"`
-	FieldSelector string `json:"fieldSelector" jsonschema:"FieldSelector (field query) to filter on, supports '=', '==', and '!='.(e.g. --field-selector key1=value1,key2=value2). The server only supports a limited number of field queries per type"`
+	Namespace     string `json:"namespace"`
+	Name          string `json:"name"`
+	SortBy        string `json:"sortBy"`
+	LabelSelector string `json:"labelSelector"`
+	FieldSelector string `json:"fieldSelector"`
 }
 
 func (s *Server) TopPod(ctx context.Context, req *mcp.CallToolRequest, args *TopPodArgs) (*mcp.CallToolResult, *bytes.Buffer, error) {
@@ -63,7 +63,7 @@ func (s *Server) TopPod(ctx context.Context, req *mcp.CallToolRequest, args *Top
 	}
 
 	out := bytes.NewBuffer(make([]byte, 0))
-	if err := metricsutil.NewTopCmdPrinter(out).PrintPodMetrics(metrics.Items, true, true, false, sortBy, true); err != nil {
+	if err := metricsutil.NewTopCmdPrinter(out, true).PrintPodMetrics(metrics.Items, true, true, false, sortBy, true); err != nil {
 		return nil, nil, err
 	}
 
@@ -77,9 +77,9 @@ func (s *Server) TopPod(ctx context.Context, req *mcp.CallToolRequest, args *Top
 
 // TopNodeArgs represents the arguments for the TopNode command.
 type TopNodeArgs struct {
-	Name          string `json:"name" jsonschema:"The specified node name"`
-	SortBy        string `json:"sortBy" jsonschema:"If non-empty, sort nodes list using specified field. The field can be either 'cpu' or 'memory'"`
-	LabelSelector string `json:"labelSelector" jsonschema:"LabelSelector (label query) to filter on, supports '=', '==', and '!='.(e.g. -l key1=value1,key2=value2). Matching objects must satisfy all of the specified label constraints"`
+	Name          string `json:"name"`
+	SortBy        string `json:"sortBy"`
+	LabelSelector string `json:"labelSelector"`
 }
 
 func (s *Server) TopNode(ctx context.Context, req *mcp.CallToolRequest, args *TopNodeArgs) (*mcp.CallToolResult, *bytes.Buffer, error) {
@@ -142,7 +142,7 @@ func (s *Server) TopNode(ctx context.Context, req *mcp.CallToolRequest, args *To
 	}
 
 	out := bytes.NewBuffer(make([]byte, 0))
-	if err := metricsutil.NewTopCmdPrinter(out).PrintNodeMetrics(metrics.Items, availableResources, false, sortBy); err != nil {
+	if err := metricsutil.NewTopCmdPrinter(out, true).PrintNodeMetrics(metrics.Items, availableResources, false, sortBy); err != nil {
 		return nil, nil, err
 	}
 

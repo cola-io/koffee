@@ -17,10 +17,10 @@ import (
 
 // RunInContainerArgs represents the arguments for the RunInContainer tool.
 type RunInContainerArgs struct {
-	Name      string   `json:"name" jsonschema:"Name of the Pod where the command will be executed"`
-	Namespace string   `json:"namespace" jsonschema:"Namespace of the Pod where the command will be executed"`
-	Container string   `json:"container" jsonschema:"The container name which execute command in the pod"`
-	Command   []string `json:"command" jsonschema:"Command to execute in the Pod container"`
+	Name      string   `json:"name"`
+	Namespace string   `json:"namespace"`
+	Container string   `json:"container"`
+	Command   []string `json:"command"`
 }
 
 type RunInContainerResult map[string]string
